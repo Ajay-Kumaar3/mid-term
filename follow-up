@@ -1,0 +1,99 @@
+# Follow-Up Bot Using ROS 1
+
+## Aim
+
+To implement a follow-up bot using ROS publishers and subscribers.
+
+## Python Code — followup_bot.py
+
+```python
+#!/usr/bin/env python3
+import rospy
+import math
+from geometry_msgs.msg import Twist
+from turtlesim.msg import Pose
+
+pose = None
+
+def pose_callback(data):
+    global pose
+    pose = data
+
+rospy.init_node('followup_bot')
+
+pub = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=10)
+rospy.Subscriber('/turtle1/pose', Pose, pose_callback)
+
+rate = rospy.Rate(10)
+
+while pose is None and not rospy.is_shutdown():
+    rate.sleep()
+
+velocity = Twist()
+
+while not rospy.is_shutdown():
+    dx = 8.0 - pose.x
+    dy = 8.0 - pose.y
+
+    distance = math.sqrt(dx**2 + dy**2)
+    angle = math.atan2(dy, dx)
+
+    error = math.atan2(
+        math.sin(angle - pose.theta),
+        math.cos(angle - pose.theta)
+    )
+
+    if distance < 0.2:
+        velocity.linear.x = 0.0
+        velocity.angular.z = 0.0
+    else:
+        velocity.linear.x = min(1.5, distance) if abs(error) < 0.2 else 0.0
+        velocity.angular.z = 4.0 * error
+
+    pub.publish(velocity)
+    rate.sleep()
+```
+
+## Execution Commands
+
+**Terminal 1 — Start ROS master**
+
+```bash
+roscore
+```
+
+**Terminal 2 — Start Turtlesim**
+
+```bash
+rosrun turtlesim turtlesim_node
+```
+
+**Terminal 3 — Run the follow-up bot**
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+chmod +x ~/24BRS1287_ws/src/ros_exam_pkg/scripts/followup_bot.py
+rosrun ros_exam_pkg followup_bot.py
+```
+
+## Working Principle
+
+1. The node subscribes to `/turtle1/pose` to receive the turtle's current position and orientation.
+2. The target position is set to `(8, 8)`.
+3. The distance between the turtle and target is calculated.
+4. The angle toward the target is calculated using `atan2()`.
+5. The turtle rotates to face the target and moves forward.
+6. When the turtle reaches within 0.2 units of the target, it stops.
+
+## Important ROS Concepts
+
+- **Publisher:** Sends velocity commands to `/turtle1/cmd_vel`.
+- **Subscriber:** Receives position data from `/turtle1/pose`.
+- **Pose:** Contains the turtle's `x`, `y`, and `theta` values.
+- **Twist:** Contains linear and angular velocity values.
+- **Feedback control:** Uses the current position to continuously adjust movement toward the target.
+
+## Expected Result
+
+The turtle autonomously moves toward `(8, 8)` and stops when it reaches the target.

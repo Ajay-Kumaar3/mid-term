@@ -1,0 +1,334 @@
+# ROS Practical: Drawing a Square Using a Custom Message
+
+## 1. Aim
+
+To create a custom ROS message and use a publisher and subscriber to control the Turtlesim turtle to draw a square.
+
+## 2. Custom Message Definition
+
+File: `msg/RobotVelocity.msg`
+
+```text
+float64 linear_x
+float64 angular_z
+float64 duration
+```
+
+- `linear_x`: Linear velocity of the turtle.
+- `angular_z`: Angular velocity of the turtle.
+- `duration`: Time for which the movement should be executed.
+
+## 3. File 1: square_controller.py
+
+### Code
+
+```python
+#!/usr/bin/env python3
+
+import rospy
+import time
+from geometry_msgs.msg import Twist
+from ros_exam_pkg.msg import RobotVelocity
+
+pub = None
+
+def callback(msg):
+    velocity = Twist()
+    velocity.linear.x = msg.linear_x
+    velocity.angular.z = msg.angular_z
+
+    start = time.time()
+
+    while time.time() - start < msg.duration and not rospy.is_shutdown():
+        pub.publish(velocity)
+        rate.sleep()
+
+    pub.publish(Twist())
+
+rospy.init_node('square_controller')
+
+pub = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=10)
+rate = rospy.Rate(10)
+
+rospy.Subscriber('/robot_velocity', RobotVelocity, callback)
+
+rospy.spin()
+```
+
+### Explanation
+
+1. `import rospy`: Imports ROS Python functions.
+2. `import time`: Used to measure movement duration.
+3. `Twist`: Standard ROS message used to control turtle velocity.
+4. `RobotVelocity`: Custom message created in the package.
+5. `pub = None`: Declares the publisher variable before the callback function.
+6. `callback(msg)`: Processes the custom message received from the publisher.
+7. `velocity = Twist()`: Creates a standard velocity message.
+8. `velocity.linear.x = msg.linear_x`: Copies the linear velocity from the custom message.
+9. `velocity.angular.z = msg.angular_z`: Copies the angular velocity.
+10. `start = time.time()`: Records the starting time.
+11. The `while` loop publishes velocity commands until the specified duration expires.
+12. `rate.sleep()`: Maintains the publishing rate at approximately 10 Hz.
+13. `pub.publish(Twist())`: Publishes zero velocity to stop the turtle.
+14. `rospy.init_node()`: Initializes the controller node.
+15. `rospy.Publisher()`: Creates a publisher for `/turtle1/cmd_vel`.
+16. `rospy.Subscriber()`: Subscribes to `/robot_velocity` and invokes the callback when a message arrives.
+17. `rospy.spin()`: Keeps the node running to process incoming messages.
+
+## 4. File 2: draw_square_custom.py
+
+### Code
+
+```python
+#!/usr/bin/env python3
+
+import rospy
+from ros_exam_pkg.msg import RobotVelocity
+
+rospy.init_node('draw_square_custom')
+
+pub = rospy.Publisher(
+    '/robot_velocity',
+    RobotVelocity,
+    queue_size=10
+)
+
+rospy.sleep(1)
+
+rate = rospy.Rate(10)
+
+for i in range(4):
+
+    # Move forward for 2 seconds
+    msg = RobotVelocity()
+    msg.linear_x = 1.0
+    msg.angular_z = 0.0
+    msg.duration = 2.0
+
+    start = rospy.Time.now()
+
+    while (rospy.Time.now() - start).to_sec() < 2 and not rospy.is_shutdown():
+        pub.publish(msg)
+        rate.sleep()
+
+    # Turn left for approximately 90 degrees
+    msg = RobotVelocity()
+    msg.linear_x = 0.0
+    msg.angular_z = 1.57
+    msg.duration = 1.0
+
+    start = rospy.Time.now()
+
+    while (rospy.Time.now() - start).to_sec() < 1 and not rospy.is_shutdown():
+        pub.publish(msg)
+        rate.sleep()
+
+# Stop command
+stop = RobotVelocity()
+stop.linear_x = 0.0
+stop.angular_z = 0.0
+stop.duration = 0.0
+pub.publish(stop)
+```
+
+### Explanation
+
+1. `import rospy`: Imports ROS Python functionality.
+2. `RobotVelocity`: Imports the generated custom message.
+3. `rospy.init_node()`: Initializes the publisher node.
+4. `rospy.Publisher()`: Creates a publisher on `/robot_velocity` using the `RobotVelocity` message type.
+5. `rospy.sleep(1)`: Waits one second for the connection to be established.
+6. `rospy.Rate(10)`: Sets the publishing rate to approximately 10 Hz.
+7. `for i in range(4)`: Repeats the forward-and-turn sequence four times.
+8. `RobotVelocity()`: Creates a custom message.
+9. `linear_x = 1.0`: Commands forward movement.
+10. `angular_z = 0.0`: Prevents rotation during forward movement.
+11. `duration = 2.0`: Specifies a two-second forward movement.
+12. The first `while` loop repeatedly publishes the forward command for approximately two seconds.
+13. `linear_x = 0.0`: Stops forward movement during the turn.
+14. `angular_z = 1.57`: Commands counterclockwise rotation at approximately 1.57 radians per second.
+15. `duration = 1.0`: Specifies a one-second turn.
+16. The second `while` loop publishes the turn command for approximately one second.
+17. The final `stop` message contains zero velocities to stop the turtle.
+
+## 5. CMakeLists.txt Configuration
+
+Add `message_generation` to the components in `find_package()`:
+
+```cmake
+find_package(catkin REQUIRED COMPONENTS
+  rospy
+  std_msgs
+  geometry_msgs
+  turtlesim
+  message_generation
+)
+```
+
+Add the custom message configuration before `catkin_package()`:
+
+```cmake
+add_message_files(
+  FILES
+  RobotVelocity.msg
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
+```
+
+Ensure `catkin_package()` includes `message_runtime`:
+
+```cmake
+catkin_package(
+  CATKIN_DEPENDS rospy std_msgs geometry_msgs turtlesim message_runtime
+)
+```
+
+Preserve any other existing configuration in the file.
+
+## 6. package.xml Dependencies
+
+Ensure these dependencies are present without duplicating existing entries:
+
+```xml
+<build_depend>message_generation</build_depend>
+<build_depend>geometry_msgs</build_depend>
+<build_depend>std_msgs</build_depend>
+
+<exec_depend>message_runtime</exec_depend>
+<exec_depend>geometry_msgs</exec_depend>
+<exec_depend>std_msgs</exec_depend>
+```
+
+Keep the existing `rospy` and `turtlesim` dependencies.
+
+## 7. Build and Verify
+
+Build the workspace:
+
+```bash
+cd ~/24BRS1287_ws
+catkin_make
+```
+
+Source the workspace:
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+```
+
+Verify the custom message:
+
+```bash
+rosmsg show ros_exam_pkg/RobotVelocity
+```
+
+Expected output:
+
+```text
+float64 linear_x
+float64 angular_z
+float64 duration
+```
+
+## 8. Run the Program
+
+### Terminal 1: Start ROS master
+
+```bash
+roscore
+```
+
+### Terminal 2: Start Turtlesim
+
+```bash
+source /opt/ros/noetic/setup.bash
+rosrun turtlesim turtlesim_node
+```
+
+### Terminal 3: Start the controller
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+rosrun ros_exam_pkg square_controller.py
+```
+
+### Terminal 4: Start the publisher
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+rosrun ros_exam_pkg draw_square_custom.py
+```
+
+Ensure both Python files are executable:
+
+```bash
+chmod +x ~/24BRS1287_ws/src/ros_exam_pkg/scripts/square_controller.py
+chmod +x ~/24BRS1287_ws/src/ros_exam_pkg/scripts/draw_square_custom.py
+```
+
+## 9. Communication Flow
+
+1. `draw_square_custom.py` publishes a custom `RobotVelocity` message on `/robot_velocity`.
+2. `square_controller.py` subscribes to `/robot_velocity`.
+3. Its callback reads the linear velocity, angular velocity, and duration.
+4. The controller converts the velocity fields into a `geometry_msgs/Twist` message.
+5. The controller publishes the `Twist` message on `/turtle1/cmd_vel`.
+6. Turtlesim receives the velocity commands and moves the turtle.
+7. The sequence repeats four times to draw a square.
+
+## 10. Important Viva Questions
+
+**Q1. What is a custom message?**
+
+A custom message is a user-defined ROS message that contains fields specified in a `.msg` file.
+
+**Q2. What is the name of the custom message?**
+
+`RobotVelocity`.
+
+**Q3. What is the custom topic?**
+
+`/robot_velocity`.
+
+**Q4. What is the message type on `/robot_velocity`?**
+
+`ros_exam_pkg/RobotVelocity`.
+
+**Q5. Why is `Twist` used in the controller?**
+
+Turtlesim expects `geometry_msgs/Twist` messages on `/turtle1/cmd_vel`.
+
+**Q6. What is the purpose of the callback?**
+
+It processes each incoming custom message and publishes the corresponding velocity commands.
+
+**Q7. What is the purpose of `rospy.spin()`?**
+
+It keeps the subscriber node alive to process incoming messages.
+
+**Q8. Why is `message_generation` required?**
+
+It allows ROS to generate source code for the custom message during the build.
+
+**Q9. Why is `message_runtime` required?**
+
+It declares the runtime dependency needed to use the generated message.
+
+**Q10. What does `angular_z = 1.57` mean?**
+
+It commands counterclockwise rotation at approximately 1.57 radians per second, which is approximately 90 degrees per second.
+
+## 11. Important Note
+
+This implementation repeatedly publishes the same timed command while the controller callback also executes for that duration. Messages can queue up, causing longer-than-expected movement. For reliable timing, publish each movement command once and make the controller execute it without blocking its subscriber callback.
+
+### Result
+
+A custom ROS message is created and used to communicate movement commands from a publisher to a subscriber/controller, which converts them into standard velocity messages for Turtlesim.

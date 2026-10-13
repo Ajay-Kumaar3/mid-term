@@ -1,0 +1,63 @@
+# 1. Create the Python file
+# Open a new terminal:
+# cd ~/24BRS1287_ws/src/ros_exam_pkg/scripts
+# nano draw_square.py
+
+
+# 2. Write this code
+
+
+# #!/usr/bin/env python3
+
+# import rospy
+# import time
+# from geometry_msgs.msg import Twist
+
+# rospy.init_node('draw_square')
+
+# pub = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=10)
+
+# rospy.sleep(1)
+
+# velocity = Twist()
+# rate = rospy.Rate(10)
+
+# for i in range(4):
+
+#     # Move forward for 2 seconds
+#     velocity.linear.x = 1.0
+#     velocity.angular.z = 0.0
+
+#     start = time.time()
+
+#     while time.time() - start < 2 and not rospy.is_shutdown():
+#         pub.publish(velocity)
+#         rate.sleep()
+
+#     # Turn 90 degrees
+#     velocity.linear.x = 0.0
+#     velocity.angular.z = 1.57
+
+#     start = time.time()
+
+#     while time.time() - start < 1 and not rospy.is_shutdown():
+#         pub.publish(velocity)
+#         rate.sleep()
+
+# # Stop the turtle
+# velocity = Twist()
+# pub.publish(velocity)
+
+
+
+
+# Save using Ctrl + O, press Enter, then Ctrl + X.
+# 3. Run the program
+# Make the file executable:
+# chmod +x draw_square.py
+
+
+# Make sure roscore and turtlesim_node are running in separate terminals. Then run:
+# source /opt/ros/noetic/setup.bash
+# source ~/24BRS1287_ws/devel/setup.bash
+# rosrun ros_exam_pkg draw_square.py

@@ -1,0 +1,187 @@
+# Q12: Draw a Square Using ROS Service
+
+## Aim
+To create a custom ROS service that makes the turtlesim turtle draw a square.
+
+## 1. Service Definition — DrawSquare.srv
+
+Location: `ros_exam_pkg/srv/DrawSquare.srv`
+
+```text
+float64 side_length
+---
+bool success
+string message
+```
+
+- Request: length of each side.
+- Response: success status and message.
+
+## 2. Service Server — square_server.py
+
+Location: `ros_exam_pkg/scripts/square_server.py`
+
+```python
+#!/usr/bin/env python3
+import rospy
+import time
+from geometry_msgs.msg import Twist
+from ros_exam_pkg.srv import DrawSquare, DrawSquareResponse
+
+pub = None
+
+def handle_square(req):
+    if req.side_length <= 0:
+        return DrawSquareResponse(False, "Invalid side length")
+
+    velocity = Twist()
+    rate = rospy.Rate(10)
+
+    for i in range(4):
+        velocity.linear.x = 1.0
+        velocity.angular.z = 0.0
+
+        start = time.time()
+        while time.time() - start < req.side_length and not rospy.is_shutdown():
+            pub.publish(velocity)
+            rate.sleep()
+
+        velocity = Twist()
+        velocity.angular.z = 1.57
+
+        start = time.time()
+        while time.time() - start < 1.0 and not rospy.is_shutdown():
+            pub.publish(velocity)
+            rate.sleep()
+
+    pub.publish(Twist())
+
+    return DrawSquareResponse(True, "Square completed")
+
+rospy.init_node('square_server')
+
+pub = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=10)
+
+service = rospy.Service('draw_square', DrawSquare, handle_square)
+
+rospy.loginfo("Square service is ready")
+rospy.spin()
+```
+
+## 3. Service Client — square_client.py
+
+Location: `ros_exam_pkg/scripts/square_client.py`
+
+```python
+#!/usr/bin/env python3
+import rospy
+from ros_exam_pkg.srv import DrawSquare
+
+rospy.init_node('square_client')
+
+rospy.wait_for_service('draw_square')
+
+draw_square = rospy.ServiceProxy('draw_square', DrawSquare)
+
+response = draw_square(2.0)
+
+print(response.message)
+print("Success:", response.success)
+```
+
+## 4. Configure CMakeLists.txt
+
+Add `DrawSquare.srv` to the existing `add_service_files()` section. Do not create a duplicate section.
+
+```cmake
+add_service_files(
+  FILES
+  DrawCircle.srv
+  DrawSquare.srv
+)
+```
+
+Keep the existing `message_generation`, `generate_messages()` and `message_runtime` configuration from the circle service.
+
+## 5. Build the Package
+
+```bash
+cd ~/24BRS1287_ws
+catkin_make
+source devel/setup.bash
+```
+
+## 6. Make Scripts Executable
+
+```bash
+chmod +x ~/24BRS1287_ws/src/ros_exam_pkg/scripts/square_server.py
+chmod +x ~/24BRS1287_ws/src/ros_exam_pkg/scripts/square_client.py
+```
+
+## 7. Run the Program
+
+**Terminal 1 — ROS master**
+
+```bash
+roscore
+```
+
+**Terminal 2 — Turtlesim**
+
+```bash
+rosrun turtlesim turtlesim_node
+```
+
+**Terminal 3 — Service server**
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+rosrun ros_exam_pkg square_server.py
+```
+
+**Terminal 4 — Service client**
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+rosrun ros_exam_pkg square_client.py
+```
+
+## 8. Working Principle
+
+1. The client sends the desired side length to the `draw_square` service.
+2. The server receives the request through `handle_square()`.
+3. The turtle moves forward to draw one side.
+4. The turtle rotates approximately 90 degrees.
+5. Steps 3 and 4 repeat four times.
+6. The server publishes zero velocity to stop the turtle.
+7. The server returns a response to the client.
+
+## 9. Expected Result
+
+The turtle draws a square and stops. The client prints `Square completed` and `Success: True`.
+
+## 10. Viva Questions
+
+**Q1. What is a ROS service?**
+
+A request-response communication mechanism between ROS nodes.
+
+**Q2. Why is a loop executed four times?**
+
+A square has four sides and four corners.
+
+**Q3. Why is angular velocity set to 1.57?**
+
+Approximately 1.57 radians per second is used to turn the turtle by about 90 degrees in one second.
+
+**Q4. What is the role of `rospy.ServiceProxy()`?**
+
+It creates the client interface used to call the service.
+
+**Q5. Why publish `Twist()` at the end?**
+
+A default `Twist` has zero linear and angular velocity, stopping the turtle.
+
+**Note:** In this simple example, `side_length` is used as the movement duration in seconds, not as an exact geometric distance. Likewise, the turn duration approximates a 90-degree rotation.

@@ -1,0 +1,50 @@
+# Step 1) We'll reuse your existing package. No new package is needed.
+# cd ~/24BRS1287_ws/src/ros_exam_pkg/scripts
+# nano change_color.py
+
+# #!/usr/bin/env python3
+
+# import rospy
+# from turtlesim.srv import SetPen
+
+# rospy.init_node('change_color')
+
+# rospy.wait_for_service('/turtle1/set_pen')
+
+# set_pen = rospy.ServiceProxy('/turtle1/set_pen', SetPen)
+
+# set_pen(255, 0, 0, 3, 0)
+
+# rospy.loginfo("Pen color changed to red")
+
+# AND MOVE_TURTLE():
+
+# #!/usr/bin/env python3
+
+# import rospy
+# from geometry_msgs.msg import Twist
+
+# def move_turtle():
+# rospy.init_node('move_turtle')
+
+#     pub = rospy.Publisher(
+#         '/turtle1/cmd_vel',
+#         Twist,
+#         queue_size=10
+#     )
+
+#     rate = rospy.Rate(10)
+
+#     velocity = Twist()
+#     velocity.linear.x = 1.0
+#     velocity.angular.z = 0.0
+
+#     while not rospy.is_shutdown():
+#         pub.publish(velocity)
+#         rate.sleep()
+
+# if **name** == '**main**':
+# try:
+# move_turtle()
+# except rospy.ROSInterruptException:
+# pass

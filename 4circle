@@ -1,0 +1,70 @@
+# Q8: Draw 4 Circles Using ROS Publisher
+
+## Python Code — draw_circle.py
+
+```python
+#!/usr/bin/env python3
+import rospy
+import math
+from geometry_msgs.msg import Twist
+
+rospy.init_node('draw_circle')
+
+pub = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=10)
+rate = rospy.Rate(10)
+
+velocity = Twist()
+velocity.linear.x = 1.0
+velocity.angular.z = 1.0
+
+total_angle = 0.0
+previous_time = rospy.Time.now().to_sec()
+
+while not rospy.is_shutdown() and total_angle < 8 * math.pi:
+    current_time = rospy.Time.now().to_sec()
+    dt = current_time - previous_time
+    previous_time = current_time
+
+    total_angle += velocity.angular.z * dt
+
+    pub.publish(velocity)
+    rate.sleep()
+
+pub.publish(Twist())
+rospy.loginfo("Completed 4 circles!")
+```
+
+## Commands to Execute
+
+**Terminal 1:**
+
+```bash
+roscore
+```
+
+**Terminal 2:**
+
+```bash
+rosrun turtlesim turtlesim_node
+```
+
+**Terminal 3:**
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+rosrun ros_exam_pkg draw_circle.py
+```
+
+## Explanation
+
+- `rospy.init_node()` initializes the ROS node.
+- `Publisher()` publishes velocity commands to `/turtle1/cmd_vel`.
+- `Twist()` contains linear and angular velocity.
+- `linear.x = 1.0` moves the turtle forward.
+- `angular.z = 1.0` makes the turtle turn while moving.
+- `8 * math.pi` represents four full rotations, since one rotation is \(2\pi\) radians.
+- `total_angle` tracks the accumulated commanded rotation.
+- `pub.publish(Twist())` sends zero velocity to stop the turtle.
+
+**Result:** The turtle draws approximately four circles and stops automatically.

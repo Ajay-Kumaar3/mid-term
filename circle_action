@@ -1,0 +1,289 @@
+# Q13: Circle Using ROS Action Server
+
+## Aim
+To implement a ROS action server and client that control a turtlesim turtle to draw circles, provide feedback, return a result, and support cancellation.
+
+## 1. Action Definition — CircleMotion.action
+
+Location: `circle_action/action/CircleMotion.action`
+
+```text
+float64 radius
+int32 target_revolutions
+---
+bool completed
+int32 revolutions_completed
+---
+float64 current_angle
+int32 current_revolution
+```
+
+- **Goal:** Radius and target number of revolutions.
+- **Result:** Completion status and revolutions completed.
+- **Feedback:** Current angle and revolution count.
+
+## 2. Action Server — circle_server.py
+
+Location: `circle_action/scripts/circle_server.py`
+
+```python
+#!/usr/bin/env python3
+import rospy
+import math
+import actionlib
+from geometry_msgs.msg import Twist
+from circle_action.msg import CircleMotionAction
+from circle_action.msg import CircleMotionFeedback
+from circle_action.msg import CircleMotionResult
+
+pub = None
+
+def execute_callback(goal):
+    result = CircleMotionResult()
+    feedback = CircleMotionFeedback()
+
+    if goal.radius <= 0 or goal.target_revolutions <= 0:
+        result.completed = False
+        result.revolutions_completed = 0
+        server.set_aborted(result, "Invalid goal")
+        return
+
+    velocity = Twist()
+    velocity.linear.x = 1.0
+    velocity.angular.z = 1.0 / goal.radius
+
+    total_angle = 0.0
+    previous_time = rospy.Time.now().to_sec()
+    rate = rospy.Rate(20)
+
+    target_angle = 2 * math.pi * goal.target_revolutions
+
+    while total_angle < target_angle and not rospy.is_shutdown():
+        if server.is_preempt_requested():
+            pub.publish(Twist())
+            result.completed = False
+            result.revolutions_completed = int(
+                total_angle / (2 * math.pi)
+            )
+            server.set_preempted(result, "Circle motion cancelled")
+            return
+
+        current_time = rospy.Time.now().to_sec()
+        dt = current_time - previous_time
+        previous_time = current_time
+
+        total_angle += abs(velocity.angular.z) * dt
+
+        feedback.current_angle = total_angle
+        feedback.current_revolution = int(
+            total_angle / (2 * math.pi)
+        )
+        server.publish_feedback(feedback)
+
+        pub.publish(velocity)
+        rate.sleep()
+
+    pub.publish(Twist())
+
+    result.completed = True
+    result.revolutions_completed = goal.target_revolutions
+    server.set_succeeded(result, "Circle motion completed")
+
+rospy.init_node('circle_server')
+
+pub = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=10)
+
+server = actionlib.SimpleActionServer(
+    'circle_motion',
+    CircleMotionAction,
+    execute_cb=execute_callback,
+    auto_start=False
+)
+
+server.start()
+rospy.loginfo("Circle action server is ready")
+rospy.spin()
+```
+
+## 3. Action Client — circle_client.py
+
+Location: `circle_action/scripts/circle_client.py`
+
+```python
+#!/usr/bin/env python3
+import rospy
+import actionlib
+from circle_action.msg import CircleMotionAction, CircleMotionGoal
+
+rospy.init_node('circle_client')
+
+client = actionlib.SimpleActionClient(
+    'circle_motion',
+    CircleMotionAction
+)
+
+client.wait_for_server()
+
+goal = CircleMotionGoal()
+goal.radius = 2.0
+goal.target_revolutions = 3
+
+def feedback_callback(feedback):
+    rospy.loginfo(
+        "Angle: %.2f rad, Revolutions: %d",
+        feedback.current_angle,
+        feedback.current_revolution
+    )
+
+    if feedback.current_revolution >= 2:
+        client.cancel_goal()
+
+client.send_goal(goal, feedback_cb=feedback_callback)
+client.wait_for_result()
+
+result = client.get_result()
+
+if result is not None:
+    print("Completed:", result.completed)
+    print("Revolutions:", result.revolutions_completed)
+```
+
+## 4. Package Configuration
+
+### CMakeLists.txt
+
+Add the action file to the existing configuration:
+
+```cmake
+add_action_files(
+  FILES
+  CircleMotion.action
+)
+
+generate_messages(
+  DEPENDENCIES
+  actionlib_msgs
+)
+```
+
+Ensure `find_package(catkin REQUIRED COMPONENTS ...)` includes:
+
+```cmake
+rospy
+geometry_msgs
+actionlib
+actionlib_msgs
+message_generation
+```
+
+Ensure `catkin_package()` includes:
+
+```cmake
+CATKIN_DEPENDS rospy geometry_msgs actionlib actionlib_msgs message_runtime
+```
+
+### package.xml
+
+Ensure these dependencies are present:
+
+```xml
+<build_depend>message_generation</build_depend>
+<build_depend>actionlib</build_depend>
+<build_depend>actionlib_msgs</build_depend>
+<build_depend>geometry_msgs</build_depend>
+<build_depend>rospy</build_depend>
+
+<exec_depend>message_runtime</exec_depend>
+<exec_depend>actionlib</exec_depend>
+<exec_depend>actionlib_msgs</exec_depend>
+<exec_depend>geometry_msgs</exec_depend>
+<exec_depend>rospy</exec_depend>
+```
+
+## 5. Build the Package
+
+```bash
+cd ~/24BRS1287_ws
+source /opt/ros/noetic/setup.bash
+catkin_make
+source devel/setup.bash
+```
+
+## 6. Make Scripts Executable
+
+```bash
+chmod +x ~/24BRS1287_ws/src/circle_action/scripts/circle_server.py
+chmod +x ~/24BRS1287_ws/src/circle_action/scripts/circle_client.py
+```
+
+## 7. Execute the Program
+
+**Terminal 1 — ROS master**
+
+```bash
+roscore
+```
+
+**Terminal 2 — Turtlesim**
+
+```bash
+rosrun turtlesim turtlesim_node
+```
+
+**Terminal 3 — Action server**
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+rosrun circle_action circle_server.py
+```
+
+**Terminal 4 — Action client**
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+rosrun circle_action circle_client.py
+```
+
+## 8. Working Principle
+
+1. The action server starts and waits for a goal.
+2. The client sends a goal requesting three revolutions with a radius of 2.0.
+3. The server calculates angular velocity using `angular.z = linear.x / radius`.
+4. The server publishes velocity commands and feedback.
+5. The client requests cancellation when the reported revolution count reaches two.
+6. The server detects the cancellation and publishes zero velocity.
+7. The server returns the result.
+
+## 9. Viva Questions
+
+**Q1. What is ROS actionlib?**
+
+It provides communication for long-running tasks with goals, feedback, results, and cancellation.
+
+**Q2. What is the difference between a service and an action?**
+
+A service uses request-response communication. An action supports long-running operations, continuous feedback, and cancellation.
+
+**Q3. What is `CircleMotion.action`?**
+
+It defines the goal, result, and feedback message structures.
+
+**Q4. What does `server.publish_feedback()` do?**
+
+It sends progress information to the action client.
+
+**Q5. What does `server.is_preempt_requested()` check?**
+
+It checks whether the current goal has been cancelled or preempted.
+
+**Q6. How does the client cancel the goal?**
+
+It calls `client.cancel_goal()`.
+
+## 10. Expected Result
+
+The turtle starts drawing a circle. The client receives feedback and requests cancellation at approximately two revolutions. The server stops the turtle and returns the result.
+
+**Note:** The revolution count is estimated from commanded angular velocity, not measured from the turtle's actual orientation. The cancellation timing is therefore approximate.

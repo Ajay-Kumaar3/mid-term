@@ -1,0 +1,293 @@
+# ROS Practical – Custom Service Server and Client
+
+## 1. Aim
+
+To create a custom ROS service that accepts two integers from a client, calculates their sum in the server, and returns the result to the client.
+
+## 2. Create the Custom Service
+
+File: `service_demo/srv/AddTwoInts.srv`
+
+```text
+int64 a
+int64 b
+---
+int64 result
+```
+
+### Explanation
+
+- `int64 a`: First integer in the request.
+- `int64 b`: Second integer in the request.
+- `---`: Separates the request from the response.
+- `int64 result`: Sum returned by the server.
+
+## 3. CMakeLists.txt Configuration
+
+Open:
+
+```bash
+nano ~/24BRS1287_ws/src/service_demo/CMakeLists.txt
+```
+
+Ensure the following components are included in `find_package()`:
+
+```cmake
+find_package(catkin REQUIRED COMPONENTS
+  rospy
+  std_msgs
+  message_generation
+)
+```
+
+Add before `catkin_package()`:
+
+```cmake
+add_service_files(
+  FILES
+  AddTwoInts.srv
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
+```
+
+Ensure `catkin_package()` includes:
+
+```cmake
+catkin_package(
+  CATKIN_DEPENDS rospy std_msgs message_runtime
+)
+```
+
+Preserve any other existing configuration.
+
+## 4. package.xml Configuration
+
+Open:
+
+```bash
+nano ~/24BRS1287_ws/src/service_demo/package.xml
+```
+
+Ensure these dependencies are present without duplicates:
+
+```xml
+<build_depend>message_generation</build_depend>
+<build_depend>std_msgs</build_depend>
+<exec_depend>message_runtime</exec_depend>
+<exec_depend>std_msgs</exec_depend>
+```
+
+Keep existing dependencies such as `rospy`.
+
+## 5. Create the Service Server
+
+File: `scripts/add_server.py`
+
+```python
+#!/usr/bin/env python3
+
+import rospy
+from service_demo.srv import AddTwoInts, AddTwoIntsResponse
+
+def handle_add(req):
+    result = req.a + req.b
+    rospy.loginfo("Sum: %s", result)
+    return AddTwoIntsResponse(result)
+
+rospy.init_node('add_server')
+
+service = rospy.Service(
+    'add_two_ints',
+    AddTwoInts,
+    handle_add
+)
+
+rospy.loginfo("Ready to add two integers")
+
+rospy.spin()
+```
+
+Make the file executable:
+
+```bash
+chmod +x ~/24BRS1287_ws/src/service_demo/scripts/add_server.py
+```
+
+### Explanation of the Server
+
+1. `import rospy`: Imports ROS Python functionality.
+2. `AddTwoInts`: Imports the generated custom service type.
+3. `AddTwoIntsResponse`: Creates the response returned to the client.
+4. `handle_add(req)`: Callback function that processes the request.
+5. `req.a` and `req.b`: Access the two input integers.
+6. `result = req.a + req.b`: Calculates the sum.
+7. `AddTwoIntsResponse(result)`: Returns the calculated sum.
+8. `rospy.init_node('add_server')`: Initializes the server node.
+9. `rospy.Service()`: Registers the service name, service type, and callback.
+10. `rospy.spin()`: Keeps the server running to handle requests.
+
+## 6. Create the Service Client
+
+File: `scripts/add_client.py`
+
+```python
+#!/usr/bin/env python3
+
+import rospy
+from service_demo.srv import AddTwoInts
+
+rospy.init_node('add_client')
+
+rospy.wait_for_service('add_two_ints')
+
+add = rospy.ServiceProxy(
+    'add_two_ints',
+    AddTwoInts
+)
+
+response = add(10, 20)
+
+rospy.loginfo("Sum = %s", response.result)
+```
+
+Make the file executable:
+
+```bash
+chmod +x ~/24BRS1287_ws/src/service_demo/scripts/add_client.py
+```
+
+### Explanation of the Client
+
+1. `import rospy`: Imports ROS Python functionality.
+2. `AddTwoInts`: Imports the custom service type.
+3. `rospy.init_node('add_client')`: Initializes the client node.
+4. `rospy.wait_for_service('add_two_ints')`: Waits until the server is available.
+5. `rospy.ServiceProxy()`: Creates a client interface for calling the service.
+6. `add(10, 20)`: Sends the request with the two integers.
+7. `response.result`: Accesses the result returned by the server.
+8. `rospy.loginfo()`: Displays the result in the terminal.
+
+## 7. Build the Workspace
+
+```bash
+cd ~/24BRS1287_ws
+catkin_make
+```
+
+Source the ROS environment and workspace:
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+```
+
+Verify the service definition:
+
+```bash
+rossrv show service_demo/AddTwoInts
+```
+
+Expected output:
+
+```text
+int64 a
+int64 b
+---
+int64 result
+```
+
+## 8. Run the Program
+
+### Terminal 1 – Start ROS Master
+
+```bash
+roscore
+```
+
+### Terminal 2 – Start the Server
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+rosrun service_demo add_server.py
+```
+
+Expected server message:
+
+```text
+Ready to add two integers
+```
+
+### Terminal 3 – Run the Client
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+rosrun service_demo add_client.py
+```
+
+Expected client output:
+
+```text
+Sum = 30
+```
+
+## 9. Working Principle
+
+1. The client sends two integers, `10` and `20`.
+2. The service server receives the request.
+3. The `handle_add()` callback calculates their sum.
+4. The server returns the result using `AddTwoIntsResponse`.
+5. The client receives the response and displays `30`.
+
+## 10. Important Viva Questions
+
+**Q1. What is a ROS service?**
+
+A ROS service provides request-response communication between a client and a server.
+
+**Q2. What is a custom service?**
+
+A user-defined service described in a `.srv` file containing request and response fields.
+
+**Q3. What is the difference between `.msg` and `.srv`?**
+
+A `.msg` file defines a message for topic communication. A `.srv` file defines a request and response for service communication.
+
+**Q4. What is `rospy.Service()`?**
+
+It registers a service server with its name, service type, and callback function.
+
+**Q5. What is `rospy.ServiceProxy()`?**
+
+It creates a client interface for calling a ROS service.
+
+**Q6. Why do we use `rospy.wait_for_service()`?**
+
+It waits until the requested service becomes available.
+
+**Q7. What is the purpose of `handle_add(req)`?**
+
+It receives the request, adds the two integers, and returns the response.
+
+**Q8. What is the purpose of `rospy.spin()`?**
+
+It keeps the server node running so it can handle incoming requests.
+
+**Q9. What is `message_generation`?**
+
+It enables ROS to generate code for custom messages and services during the build.
+
+**Q10. What is `message_runtime`?**
+
+It provides the runtime dependency needed to use the generated messages and services.
+
+## 11. Result
+
+A custom ROS service named `add_two_ints` is created successfully. The client sends two integers to the server, the server calculates their sum, and the result is returned to the client.
+
+For the inputs `10` and `20`, the output is `30`.

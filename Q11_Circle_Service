@@ -1,0 +1,208 @@
+# Q11: Draw a Circle Using ROS Service
+
+## Aim
+To create a custom ROS service that makes the turtlesim turtle move in a circular path.
+
+## 1. Service Definition — DrawCircle.srv
+
+Location: `ros_exam_pkg/srv/DrawCircle.srv`
+
+```text
+float64 radius
+float64 duration
+---
+bool success
+string message
+```
+
+- Request: radius and duration.
+- Response: success status and message.
+
+## 2. Service Server — circle_server.py
+
+Location: `ros_exam_pkg/scripts/circle_server.py`
+
+```python
+#!/usr/bin/env python3
+import rospy
+from geometry_msgs.msg import Twist
+from ros_exam_pkg.srv import DrawCircle, DrawCircleResponse
+
+pub = None
+
+def handle_circle(req):
+    velocity = Twist()
+
+    if req.radius <= 0 or req.duration <= 0:
+        return DrawCircleResponse(False, "Invalid radius or duration")
+
+    velocity.linear.x = 1.0
+    velocity.angular.z = velocity.linear.x / req.radius
+
+    start = rospy.Time.now()
+    rate = rospy.Rate(10)
+
+    while (rospy.Time.now() - start).to_sec() < req.duration and not rospy.is_shutdown():
+        pub.publish(velocity)
+        rate.sleep()
+
+    pub.publish(Twist())
+
+    return DrawCircleResponse(True, "Circle motion completed")
+
+rospy.init_node('circle_server')
+
+pub = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=10)
+
+service = rospy.Service('draw_circle', DrawCircle, handle_circle)
+
+rospy.loginfo("Circle service is ready")
+rospy.spin()
+```
+
+## 3. Service Client — circle_client.py
+
+Location: `ros_exam_pkg/scripts/circle_client.py`
+
+```python
+#!/usr/bin/env python3
+import rospy
+from ros_exam_pkg.srv import DrawCircle
+
+rospy.init_node('circle_client')
+
+rospy.wait_for_service('draw_circle')
+
+draw_circle = rospy.ServiceProxy('draw_circle', DrawCircle)
+
+response = draw_circle(2.0, 5.0)
+
+print(response.message)
+print("Success:", response.success)
+```
+
+## 4. Package Configuration
+
+### CMakeLists.txt
+
+Ensure the existing file contains the following configuration. Merge these entries into existing sections instead of duplicating them.
+
+```cmake
+find_package(catkin REQUIRED COMPONENTS
+  rospy
+  std_msgs
+  geometry_msgs
+  turtlesim
+  std_srvs
+  message_generation
+)
+
+add_service_files(
+  FILES
+  DrawCircle.srv
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
+
+catkin_package(
+  CATKIN_DEPENDS rospy std_msgs geometry_msgs turtlesim std_srvs message_runtime
+)
+```
+
+### package.xml
+
+Ensure these dependencies are present:
+
+```xml
+<build_depend>message_generation</build_depend>
+<exec_depend>message_runtime</exec_depend>
+<build_depend>rospy</build_depend>
+<exec_depend>rospy</exec_depend>
+<depend>geometry_msgs</depend>
+<depend>std_msgs</depend>
+<depend>turtlesim</depend>
+```
+
+## 5. Build the Package
+
+```bash
+cd ~/24BRS1287_ws
+catkin_make
+source devel/setup.bash
+```
+
+## 6. Make Scripts Executable
+
+```bash
+chmod +x ~/24BRS1287_ws/src/ros_exam_pkg/scripts/circle_server.py
+chmod +x ~/24BRS1287_ws/src/ros_exam_pkg/scripts/circle_client.py
+```
+
+## 7. Execution
+
+**Terminal 1 — ROS master**
+```bash
+roscore
+```
+
+**Terminal 2 — Turtlesim**
+```bash
+rosrun turtlesim turtlesim_node
+```
+
+**Terminal 3 — Service server**
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+rosrun ros_exam_pkg circle_server.py
+```
+
+**Terminal 4 — Service client**
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+rosrun ros_exam_pkg circle_client.py
+```
+
+## 8. Working Principle
+
+1. The client sends a request containing the radius and duration.
+2. The server receives the request through `handle_circle()`.
+3. The server calculates angular velocity using:
+
+   `angular.z = linear.x / radius`
+
+4. The server publishes velocity commands to `/turtle1/cmd_vel`.
+5. After the requested duration, the server publishes zero velocity.
+6. The server returns a response to the client.
+
+## 9. Expected Result
+
+The turtle moves in a circular path for approximately five seconds and stops. The client prints the server's response.
+
+## 10. Viva Questions
+
+**Q1. What is a ROS service?**
+
+A ROS service provides request-response communication between nodes.
+
+**Q2. Which functions create a service server and client?**
+
+`rospy.Service()` creates the server, while `rospy.ServiceProxy()` creates the client proxy.
+
+**Q3. What is `rospy.wait_for_service()` used for?**
+
+It waits until the requested service becomes available.
+
+**Q4. What is the purpose of `rospy.spin()`?**
+
+It keeps the server node active so it can handle incoming service requests.
+
+**Q5. How is angular velocity calculated for circular motion?**
+
+Angular velocity is linear velocity divided by the radius: `angular.z = linear.x / radius`.
+
+**Note:** The duration determines how long the turtle moves, not an exact number of complete circles.

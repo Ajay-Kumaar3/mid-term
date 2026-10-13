@@ -1,0 +1,169 @@
+Move the Turtlesim Turtle Forward Using a ROS Publisher
+Objective
+Create a ROS1 Python publisher node that continuously moves the turtlesim turtle forward by publishing geometry_msgs/Twist messages to /turtle1/cmd_vel.
+Environment
+
+- ROS version: ROS1 Noetic
+- OS: Ubuntu 20.04 / WSL Ubuntu
+- Workspace: ~/24BRS1287_ws
+- Package: ros_exam_pkg
+- Python node: move_turtle.py
+
+A. Create a Catkin Workspace (Fresh Setup Only)
+If you already have the workspace, skip this section.
+Step 1: Source ROS
+source /opt/ros/noetic/setup.bash
+
+Step 2: Create the workspace
+mkdir -p ~/catkin_ws/src
+cd ~/catkin_ws/src
+catkin_init_workspace
+
+Step 3: Build the workspace
+cd ~/catkin_ws
+catkin_make
+
+Step 4: Source the workspace
+source ~/catkin_ws/devel/setup.bash
+
+For the current practical, use the existing workspace ~/24BRS1287_ws instead of creating another one.
+
+B. Create the ROS Package
+Step 1: Navigate to the source directory
+source /opt/ros/noetic/setup.bash
+cd ~/24BRS1287_ws/src
+
+Step 2: Create the package
+Run this only if ros_exam_pkg does not already exist.
+catkin_create_pkg ros_exam_pkg rospy std_msgs geometry_msgs turtlesim
+
+Dependencies:
+
+- rospy — Python interface for ROS.
+- std_msgs — standard ROS messages.
+- geometry_msgs — provides the Twist message.
+- turtlesim — turtle simulator package.
+  Step 3: Build the workspace
+  cd ~/24BRS1287_ws
+  catkin_make
+  source devel/setup.bash
+
+C. Create the Python Publisher Node
+Step 1: Create the scripts directory
+mkdir -p ~/24BRS1287_ws/src/ros_exam_pkg/scripts
+
+Step 2: Create the Python file
+cd ~/24BRS1287_ws/src/ros_exam_pkg/scripts
+nano move_turtle.py
+
+Step 3: Write the complete code
+
+#!/usr/bin/env python3
+
+import rospy
+from geometry_msgs.msg import Twist
+
+def move_turtle():
+rospy.init_node('move_turtle')
+
+    pub = rospy.Publisher(
+        '/turtle1/cmd_vel',
+        Twist,
+        queue_size=10
+    )
+
+    rate = rospy.Rate(10)
+
+    velocity = Twist()
+    velocity.linear.x = 1.0
+    velocity.angular.z = 0.0
+
+    while not rospy.is_shutdown():
+        pub.publish(velocity)
+        rate.sleep()
+
+if **name** == '**main**':
+try:
+move_turtle()
+except rospy.ROSInterruptException:
+pass
+
+Save the file using Ctrl + O → Enter → Ctrl + X.
+Important: The correct topic name is /turtle1/cmd_vel, not /turtle/cmd_vel.
+
+D. Make the Python File Executable
+chmod +x ~/24BRS1287_ws/src/ros_exam_pkg/scripts/move_turtle.py
+
+This allows ROS to execute the Python file directly.
+
+E. Configure the Package Files
+
+1. package.xml
+   The package must declare these dependencies:
+   <depend>rospy</depend>
+   <depend>std_msgs</depend>
+   <depend>geometry_msgs</depend>
+   <depend>turtlesim</depend>
+
+Do not add duplicate entries if they already exist. 2. CMakeLists.txt
+Ensure the find_package section contains:
+find_package(catkin REQUIRED COMPONENTS
+rospy
+std_msgs
+geometry_msgs
+turtlesim
+)
+
+For this Python program, which uses existing ROS messages, you do not need custom message generation or a custom executable target in CMakeLists.txt.
+
+F. Build the Workspace
+cd ~/24BRS1287_ws
+catkin_make
+source devel/setup.bash
+
+For this Python-only program, catkin_make is not normally required every time the Python code changes.
+
+G. Run the Program
+Use three separate terminals.
+Terminal 1 — Start ROS Master
+source /opt/ros/noetic/setup.bash
+roscore
+
+Keep this terminal open.
+Terminal 2 — Start Turtlesim
+source /opt/ros/noetic/setup.bash
+rosrun turtlesim turtlesim_node
+
+A window containing the turtle should appear.
+Terminal 3 — Run Your Publisher
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+rosrun ros_exam_pkg move_turtle.py
+
+The turtle should start moving forward.
+Press Ctrl + C in Terminal 3 to stop the publisher.
+
+H. Verify the Program
+Open another terminal and source the environment:
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+
+List running nodes:
+rosnode list
+
+List topics:
+rostopic list
+
+Check the velocity topic:
+rostopic info /turtle1/cmd_vel
+
+Display one velocity message:
+rostopic echo -n 1 /turtle1/cmd_vel
+
+Expected message values include:
+linear:
+x: 1.0
+angular:
+z: 0.0
+
+The topic type should be geometry_msgs/Twist.

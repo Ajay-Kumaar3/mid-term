@@ -1,0 +1,95 @@
+# Q10: Keyboard Teleoperation of TurtleBot (Turtlesim)
+
+## Aim
+
+To control the movement of a turtle using keyboard inputs through a ROS Python node.
+
+## Python Code — teleop_turtle.py
+
+```python
+#!/usr/bin/env python3
+import rospy
+import sys
+import termios
+import tty
+from geometry_msgs.msg import Twist
+
+rospy.init_node('teleop_turtle')
+
+pub = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=10)
+
+settings = termios.tcgetattr(sys.stdin)
+
+try:
+    tty.setraw(sys.stdin.fileno())
+
+    while not rospy.is_shutdown():
+        key = sys.stdin.read(1)
+        velocity = Twist()
+
+        if key == 'w':
+            velocity.linear.x = 2.0
+        elif key == 's':
+            velocity.linear.x = -2.0
+        elif key == 'a':
+            velocity.angular.z = 2.0
+        elif key == 'd':
+            velocity.angular.z = -2.0
+        elif key == 'q':
+            break
+
+        pub.publish(velocity)
+
+finally:
+    pub.publish(Twist())
+    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
+```
+
+## Execution Commands
+
+**Terminal 1:**
+
+```bash
+roscore
+```
+
+**Terminal 2:**
+
+```bash
+rosrun turtlesim turtlesim_node
+```
+
+**Terminal 3:**
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+chmod +x ~/24BRS1287_ws/src/ros_exam_pkg/scripts/teleop_turtle.py
+rosrun ros_exam_pkg teleop_turtle.py
+```
+
+Click inside Terminal 3 before pressing the keys.
+
+## Keyboard Controls
+
+- `W` — Move forward
+- `S` — Move backward
+- `A` — Turn left
+- `D` — Turn right
+- `Q` — Quit
+
+## Explanation
+
+- `rospy.init_node()` initializes the ROS node.
+- `Publisher()` publishes velocity commands to `/turtle1/cmd_vel`.
+- `Twist` contains linear and angular velocity values.
+- `termios` and `tty` allow the program to read keyboard input directly.
+- `linear.x` controls forward and backward movement.
+- `angular.z` controls rotation.
+- `pub.publish(Twist())` sends zero velocity to stop the turtle.
+- `rospy.is_shutdown()` checks whether ROS is shutting down.
+- `finally` restores the terminal settings when the program exits.
+
+## Expected Result
+
+The turtle moves forward, backward, and turns based on keyboard input. Pressing `Q` exits the program.
