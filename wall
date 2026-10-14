@@ -1,0 +1,149 @@
+# Q14: Wall Avoidance Using a Virtual Laser Scanner — ROS 1 Noetic
+
+## Aim
+
+To simulate a virtual laser scanner that publishes the distance to a wall and control the turtlesim turtle to avoid the wall using ROS publisher and subscriber nodes.
+
+## 1. Wall Avoidance Node — wall_avoidance.py
+
+Location: `ros_exam_pkg/scripts/wall_avoidance.py`
+
+```python
+#!/usr/bin/env python3
+import rospy
+from geometry_msgs.msg import Twist
+from std_msgs.msg import Float32
+
+distance = 5.0
+
+def scan_callback(data):
+    global distance
+    distance = data.data
+
+rospy.init_node('wall_avoidance')
+
+pub = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=10)
+rospy.Subscriber('/wall_distance', Float32, scan_callback)
+
+rate = rospy.Rate(10)
+velocity = Twist()
+
+while not rospy.is_shutdown():
+    if distance > 1.0:
+        velocity.linear.x = 1.0
+        velocity.angular.z = 0.0
+    else:
+        velocity.linear.x = 0.0
+        velocity.angular.z = 1.0
+
+    pub.publish(velocity)
+    rate.sleep()
+```
+
+## 2. Virtual Laser Scanner — virtual_laser.py
+
+Location: `ros_exam_pkg/scripts/virtual_laser.py`
+
+```python
+#!/usr/bin/env python3
+import rospy
+from std_msgs.msg import Float32
+
+rospy.init_node('virtual_laser')
+
+pub = rospy.Publisher('/wall_distance', Float32, queue_size=10)
+rate = rospy.Rate(1)
+
+distance = 5.0
+
+while not rospy.is_shutdown():
+    pub.publish(Float32(data=distance))
+    rospy.loginfo("Wall distance: %.2f", distance)
+
+    if distance > 0.5:
+        distance -= 0.5
+
+    rate.sleep()
+```
+
+## 3. Make Scripts Executable
+
+```bash
+chmod +x ~/24BRS1287_ws/src/ros_exam_pkg/scripts/wall_avoidance.py
+chmod +x ~/24BRS1287_ws/src/ros_exam_pkg/scripts/virtual_laser.py
+```
+
+## 4. Execute the Program
+
+**Terminal 1 — Start ROS master**
+
+```bash
+roscore
+```
+
+**Terminal 2 — Start Turtlesim**
+
+```bash
+rosrun turtlesim turtlesim_node
+```
+
+**Terminal 3 — Start virtual laser scanner**
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+rosrun ros_exam_pkg virtual_laser.py
+```
+
+**Terminal 4 — Start wall avoidance node**
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/24BRS1287_ws/devel/setup.bash
+rosrun ros_exam_pkg wall_avoidance.py
+```
+
+## 5. Working Principle
+
+1. The virtual laser node publishes the simulated wall distance on `/wall_distance`.
+2. The wall avoidance node subscribes to `/wall_distance`.
+3. The callback updates the current distance.
+4. If the distance is greater than `1.0`, the turtle moves forward.
+5. If the distance is `1.0` or less, the turtle stops moving forward and turns.
+6. Velocity commands are published to `/turtle1/cmd_vel`.
+
+## 6. Important ROS Concepts
+
+- **Publisher:** Sends messages on a ROS topic.
+- **Subscriber:** Receives messages from a topic.
+- **Callback:** Processes incoming messages.
+- **Twist:** Specifies linear and angular velocity.
+- **Virtual laser scanner:** Simulates distance readings without a physical sensor.
+
+## 7. Expected Result
+
+The turtle initially moves forward. As the simulated wall distance decreases to the threshold, the turtle turns to avoid the simulated obstacle.
+
+## 8. Viva Questions
+
+**Q1. What is wall avoidance?**
+
+It is a navigation technique in which a robot detects obstacles and changes its movement to avoid collisions.
+
+**Q2. What is the purpose of the virtual laser scanner?**
+
+It simulates distance measurements and publishes them on a ROS topic.
+
+**Q3. Which topic carries the simulated distance?**
+
+`/wall_distance`
+
+**Q4. Which topic carries velocity commands?**
+
+`/turtle1/cmd_vel`
+
+**Q5. Why use `Twist`?**
+
+It represents the robot's linear and angular velocity.
+
+**Note:** This is a simplified demonstration. The scanner decreases the distance independently of the turtle's actual position, so it is not a realistic geometric simulation of a wall. The turtle can still reach the edge of the turtlesim window.
