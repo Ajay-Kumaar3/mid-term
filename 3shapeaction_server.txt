@@ -1,0 +1,196 @@
+
+find_package(catkin REQUIRED COMPONENTS
+  geometry_msgs
+  roscpp
+  rospy
+  std_msgs
+  actionlib
+  actionlib_msgs
+  message_generation
+  turtlesim
+)
+
+add_action_files(
+  DIRECTORY action
+  FILES
+  DrawShapes.action
+  GoToPoint.action
+)
+
+generate_messages(
+  DEPENDENCIES
+  geometry_msgs
+  std_msgs
+  actionlib_msgs
+)
+
+catkin_package(
+  CATKIN_DEPENDS
+  geometry_msgs
+  roscpp
+  rospy
+  std_msgs
+  actionlib
+  actionlib_msgs
+  message_runtime
+  turtlesim
+)
+
+
+
+<build_depend>actionlib</build_depend>
+<build_depend>actionlib_msgs</build_depend>
+<build_depend>message_generation</build_depend>
+
+<build_export_depend>actionlib</build_export_depend>
+<build_export_depend>actionlib_msgs</build_export_depend>
+
+<exec_depend>actionlib</exec_depend>
+<exec_depend>actionlib_msgs</exec_depend>
+<exec_depend>message_runtime</exec_depend>
+
+
+
+
+
+
+#!/usr/bin/env python3
+
+import rospy
+import math
+import actionlib
+
+from geometry_msgs.msg import Twist
+from exam_pkg.msg import DrawShapesAction
+from exam_pkg.msg import DrawShapesFeedback
+from exam_pkg.msg import DrawShapesResult
+
+rospy.init_node('draw_shape_server')
+
+pub1 = rospy.Publisher('/turtle1/cmd_vel',Twist,queue_size=10)
+pub2 = rospy.Publisher('/turtle2/cmd_vel',Twist,queue_size=10)
+pub3 = rospy.Publisher('/turtle3/cmd_vel',Twist,queue_size=10)
+
+rate = rospy.Rate(50)
+
+def draw_circle(pub):
+	speed = 1.0
+	radius = 1.0
+	ang_speed = speed/radius
+	duration = 2 *(math.pi)/ang_speed
+	
+	msg = Twist()
+	msg.linear.x = speed
+	msg.angular.z = ang_speed
+	
+	start = rospy.Time.now()
+	
+	while (rospy.Time.now() - start).to_sec() < duration :
+		pub.publish(msg)
+		rate.sleep()
+	
+	pub.publish(Twist())
+	
+
+def draw_diamond(pub):
+    forward = Twist()
+    forward.linear.x = 1.0
+
+    rotate = Twist()
+    rotate.angular.z = -math.pi / 2
+
+    for i in range(4):
+        start = rospy.Time.now()
+
+        while (rospy.Time.now() - start).to_sec() < 2.0:
+            pub.publish(forward)
+            rate.sleep()
+
+        pub.publish(Twist())
+
+        start = rospy.Time.now()
+
+        while (rospy.Time.now() - start).to_sec() < 1.0:
+            pub.publish(rotate)
+            rate.sleep()
+
+        pub.publish(Twist())
+
+        	
+def draw_rectangle(pub):
+    forward = Twist()
+    forward.linear.x = 1.0
+
+    turn = Twist()
+    turn.angular.z = math.pi / 2
+
+    for i in range(2):
+
+        start = rospy.Time.now()
+
+        while (rospy.Time.now() - start).to_sec() < 3.0:
+            pub.publish(forward)
+            rate.sleep()
+
+        pub.publish(Twist())
+
+        start = rospy.Time.now()
+
+        while (rospy.Time.now() - start).to_sec() < 1.0:
+            pub.publish(turn)
+            rate.sleep()
+
+        pub.publish(Twist())
+
+        start = rospy.Time.now()
+
+        while (rospy.Time.now() - start).to_sec() < 2.0:
+            pub.publish(forward)
+            rate.sleep()
+
+        pub.publish(Twist())
+
+        start = rospy.Time.now()
+
+        while (rospy.Time.now() - start).to_sec() < 1.0:
+            pub.publish(turn)
+            rate.sleep()
+
+        pub.publish(Twist())
+        
+
+def execute_callback(goal):
+    feedback = DrawShapesFeedback()
+    result = DrawShapesResult()
+
+    feedback.current_shape = "circle"
+    feedback.shapes_completed = 0
+    server.publish_feedback(feedback)
+
+    draw_circle(pub1)
+
+    feedback.current_shape = "diamond"
+    feedback.shapes_completed = 1
+    server.publish_feedback(feedback)
+
+    draw_diamond(pub2)
+
+    feedback.current_shape = "rectangle"
+    feedback.shapes_completed = 2
+    server.publish_feedback(feedback)
+
+    draw_rectangle(pub3)
+
+    result.success = True
+    result.message = "All three shapes completed"
+
+    server.set_succeeded(result)
+
+
+server = actionlib.SimpleActionServer('/draw_shapes',DrawShapesAction,execute_cb = execute_callback)
+
+server.start()
+
+rospy.spin()
+		
+	

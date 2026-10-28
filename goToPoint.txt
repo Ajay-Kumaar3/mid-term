@@ -1,0 +1,110 @@
+float32 target_x
+float32 target_y
+---
+bool success
+string message
+---
+float32 current_x
+float32 current_y
+float32 distance_remaining
+
+
+#!/usr/bin/env python3
+
+import rospy
+import math
+import actionlib
+
+from geometry_msgs.msg import Twist
+from turtlesim.msg import Pose
+from exam_pkg.msg import GoToPointAction
+from exam_pkg.msg import GoToPointFeedback
+from exam_pkg.msg import GoToPointResult
+
+rospy.init_node('go_to_point_server')
+
+pub = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=10)
+
+x = 0.0
+y = 0.0
+theta = 0.0
+
+def pose_callback(msg):
+    global x, y, theta
+    x = msg.x
+    y = msg.y
+    theta = msg.theta
+
+rospy.Subscriber('/turtle1/pose', Pose, pose_callback)
+
+rate = rospy.Rate(20)
+
+
+def execute_callback(goal):
+    feedback = GoToPointFeedback()
+    result = GoToPointResult()
+    vel = Twist()
+
+    target_x = goal.target_x
+    target_y = goal.target_y
+
+    while not rospy.is_shutdown():
+
+        if server.is_preempt_requested():
+            pub.publish(Twist())
+            server.set_preempted()
+            return
+
+        # Calculate distance to destination
+        dx = target_x - x
+        dy = target_y - y
+
+        distance = math.sqrt(dx**2 + dy**2)
+
+        # Publish current position and remaining distance
+        feedback.current_x = x
+        feedback.current_y = y
+        feedback.distance_remaining = distance
+        server.publish_feedback(feedback)
+
+        # Stop when close enough to the target
+        if distance < 0.1:
+            pub.publish(Twist())
+
+            result.success = True
+            result.message = "Destination reached"
+            server.set_succeeded(result)
+            return
+
+        # Calculate desired direction
+        target_angle = math.atan2(dy, dx)
+
+        # Calculate angular error and normalize it
+        angle_error = target_angle - theta
+        angle_error = math.atan2(
+            math.sin(angle_error),
+            math.cos(angle_error)
+        )
+
+        # Turn first, then move forward
+        if abs(angle_error) > 0.1:
+            vel.linear.x = 0.0
+            vel.angular.z = 2.0 * angle_error
+        else:
+            vel.linear.x = min(1.0, distance)
+            vel.angular.z = 0.0
+
+        pub.publish(vel)
+        rate.sleep()
+
+
+server = actionlib.SimpleActionServer(
+    '/go_to_point',
+    GoToPointAction,
+    execute_cb=execute_callback,
+    auto_start=False
+)
+
+server.start()
+rospy.loginfo("Go To Point Action Server is ready")
+rospy.spin()

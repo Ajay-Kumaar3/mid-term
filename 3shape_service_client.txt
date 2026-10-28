@@ -1,0 +1,23 @@
+
+#!/usr/bin/env python3
+
+import rospy
+from exam_pkg.srv import DrawShapes
+
+rospy.init_node('shapes_service_client')
+
+# Wait until the Service Server is available
+rospy.wait_for_service('/draw_shapes_service')
+
+# Create the Service Client
+draw_shapes = rospy.ServiceProxy(
+    '/draw_shapes_service',
+    DrawShapes
+)
+
+# Call the service and wait for its response
+response = draw_shapes()
+
+# Print the response
+print("Success:", response.success)
+print("Message:", response.message)

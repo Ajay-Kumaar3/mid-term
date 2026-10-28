@@ -1,0 +1,145 @@
+
+# #!/usr/bin/env python3
+
+# import rospy
+# import math
+# from geometry_msgs.msg import Twist
+
+# rospy.init_node('draw_shapes')
+
+# # Publishers for the three existing turtles
+# pub1 = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=10)
+# pub2 = rospy.Publisher('/turtle2/cmd_vel', Twist, queue_size=10)
+# pub3 = rospy.Publisher('/turtle3/cmd_vel', Twist, queue_size=10)
+
+# rate = rospy.Rate(50)
+
+
+# # Stop the turtle by publishing zero velocity
+# def stop_turtle(pub):
+#     msg = Twist()
+#     pub.publish(msg)
+#     rate.sleep()
+
+
+# # Move forward for a specified duration
+# def move_forward(pub, speed, duration):
+#     msg = Twist()
+#     msg.linear.x = speed
+
+#     start = rospy.Time.now()
+
+#     while (rospy.Time.now() - start).to_sec() < duration:
+#         pub.publish(msg)
+#         rate.sleep()
+
+#     stop_turtle(pub)
+
+
+# # Rotate for a specified duration
+# def rotate(pub, angular_speed, duration):
+#     msg = Twist()
+#     msg.angular.z = angular_speed
+
+#     start = rospy.Time.now()
+
+#     while (rospy.Time.now() - start).to_sec() < duration:
+#         pub.publish(msg)
+#         rate.sleep()
+
+#     stop_turtle(pub)
+
+
+# # -----------------------------------
+# # TURTLE 1: DRAW A CIRCLE
+# # -----------------------------------
+# def draw_circle(pub):
+#     speed = 1.0
+#     radius = 1.0
+
+#     # Angular velocity = linear velocity / radius
+#     angular_speed = speed / radius
+
+#     # Time for one full 360-degree circle
+#     duration = (2 * math.pi) / angular_speed
+
+#     msg = Twist()
+#     msg.linear.x = speed
+#     msg.angular.z = angular_speed
+
+#     start = rospy.Time.now()
+
+#     while (rospy.Time.now() - start).to_sec() < duration:
+#         pub.publish(msg)
+#         rate.sleep()
+
+#     stop_turtle(pub)
+
+
+# # -----------------------------------
+# # TURTLE 2: DRAW A DIAMOND
+# # -----------------------------------
+# def draw_diamond(pub):
+#     speed = 1.0
+#     side_length = 2.0
+
+#     # Time required to travel one side
+#     side_time = side_length / speed
+
+#     # A diamond has four equal sides
+#     for i in range(4):
+#         move_forward(pub, speed, side_time)
+
+#         # Turn 90 degrees clockwise
+#         rotate(pub, -math.pi / 2, 1.0)
+
+
+# # -----------------------------------
+# # TURTLE 3: DRAW A RECTANGLE
+# # -----------------------------------
+# def draw_rectangle(pub):
+#     speed = 1.0
+
+#     # Rectangle dimensions
+#     length = 3.0
+#     width = 2.0
+
+#     length_time = length / speed
+#     width_time = width / speed
+
+#     # Draw two long sides and two short sides
+#     for i in range(2):
+#         move_forward(pub, speed, length_time)
+#         rotate(pub, math.pi / 2, 1.0)
+
+#         move_forward(pub, speed, width_time)
+#         rotate(pub, math.pi / 2, 1.0)
+
+
+# # -----------------------------------
+# # EXECUTION: ONE AFTER ANOTHER
+# # -----------------------------------
+
+# # First turtle completes its circle
+# draw_circle(pub1)
+
+# # Only then does the second turtle draw a diamond
+# draw_diamond(pub2)
+
+# # Finally, the third turtle draws a rectangle
+# draw_rectangle(pub3)
+
+# # Stop all three turtles
+# stop_turtle(pub1)
+# stop_turtle(pub2)
+# stop_turtle(pub3)
+
+# rospy.loginfo("All shapes completed!")
+
+# rospy.spin()
+
+
+# #rosservice call /spawn "x: 8.0          
+# #y: 2.0
+# #theta: 0.0
+# #name: 'turtle3'"

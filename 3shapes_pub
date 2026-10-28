@@ -1,0 +1,101 @@
+
+#!/usr/bin/env python3
+import rospy
+import math
+from geometry_msgs.msg import Twist
+from turtlesim.srv import Spawn, SetPen
+
+rospy.init_node('three_shapes_pubsub')
+
+# Publishers for all three turtles
+pub1 = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=10)
+pub2 = rospy.Publisher('/turtle2/cmd_vel', Twist, queue_size=10)
+pub3 = rospy.Publisher('/turtle3/cmd_vel', Twist, queue_size=10)
+
+rate = rospy.Rate(50)
+
+# Spawn turtle2 and turtle3
+rospy.wait_for_service('/spawn')
+spawn = rospy.ServiceProxy('/spawn', Spawn)
+
+spawn(5.5, 6.5, 0.0, 'turtle2')
+spawn(5.5, 9.0, 0.0, 'turtle3')
+
+# Set different pen colours
+rospy.wait_for_service('/turtle1/set_pen')
+rospy.wait_for_service('/turtle2/set_pen')
+rospy.wait_for_service('/turtle3/set_pen')
+
+pen1 = rospy.ServiceProxy('/turtle1/set_pen', SetPen)
+pen2 = rospy.ServiceProxy('/turtle2/set_pen', SetPen)
+pen3 = rospy.ServiceProxy('/turtle3/set_pen', SetPen)
+
+pen1(255, 0, 0, 3, 0)  # Red
+pen2(0, 255, 0, 3, 0)  # Green
+pen3(0, 0, 255, 3, 0)  # Blue
+
+
+# Move the turtle for a specified duration
+def move_for(pub, msg, duration):
+    start = rospy.Time.now()
+
+    while (rospy.Time.now() - start).to_sec() < duration:
+        pub.publish(msg)
+        rate.sleep()
+
+    # Stop the turtle after each movement
+    pub.publish(Twist())
+
+
+# Draw one circle
+def draw_circle(pub):
+    msg = Twist()
+    msg.linear.x = 1.0
+    msg.angular.z = 1.0
+
+    # Approximately one complete revolution
+    move_for(pub, msg, 2 * math.pi)
+
+
+# Draw a diamond using four equal sides
+def draw_diamond(pub):
+    forward = Twist()
+    forward.linear.x = 1.0
+
+    turn = Twist()
+    turn.angular.z = -math.pi / 2
+
+    for i in range(4):
+        move_for(pub, forward, 2.0)
+        move_for(pub, turn, 1.0)
+
+
+# Draw a rectangle using two long and two short sides
+def draw_rectangle(pub):
+    forward = Twist()
+    forward.linear.x = 1.0
+
+    turn = Twist()
+    turn.angular.z = math.pi / 2
+
+    for i in range(2):
+        move_for(pub, forward, 3.0)
+        move_for(pub, turn, 1.0)
+
+        move_for(pub, forward, 2.0)
+        move_for(pub, turn, 1.0)
+
+
+# Execute shapes one by one
+rospy.sleep(1)
+
+rospy.loginfo("Turtle 1: Drawing circle")
+draw_circle(pub1)
+
+rospy.loginfo("Turtle 2: Drawing diamond")
+draw_diamond(pub2)
+
+rospy.loginfo("Turtle 3: Drawing rectangle")
+draw_rectangle(pub3)
+
+rospy.loginfo("All three shapes completed")
